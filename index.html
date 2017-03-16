@@ -1,0 +1,457 @@
+<style>
+    #content1 {
+        top: 22px;
+        text-align: center;
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        background-color: black;
+        opacity: 0.8;
+    }
+
+    #content1 h1 {
+        margin-top: 80px;
+        color: white;
+        font-size: 30px;
+    }
+
+    #content1 button {
+        margin: 5px;
+    }
+
+    #content2 {
+        height: 15px;
+        width: 150px;
+    }
+
+    #content2 span {
+        color: black;
+        font-size: 10px;
+        font-weight: bold;
+    }
+
+    #content3 {
+        top: 22px;
+        text-align: center;
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        background-color: black;
+        opacity: 0.8;
+    }
+
+    #content3 h1 {
+        color: white;
+        font-size: 30px;
+    }
+
+    #content3 button {
+        margin: 5px;
+    }
+
+    #content4 {
+        top: 22px;
+        position: absolute;
+        text-align: center;
+        width: 360px;
+        height: 360px;
+        background-color: black;
+        opacity: 0.8;
+        color: white;
+    }
+
+    .divStyle {
+        background-color: #EFEFEF;
+        width: 10px;
+        height: 10px;
+        margin: 1px;
+        float: left;
+    }
+
+    .listStyle {
+        clear: both;
+    }
+
+    .head {
+        background-color: red;
+    }
+
+    .body {
+        background-color: indianred;
+    }
+
+    .fruit {
+        background-color: darkgreen;
+    }
+
+</style>
+<meta charset="utf-8">
+<div id="app">
+    <div id="content1" v-show="isShowContentHome">
+        <h1>贪吃蛇</h1>
+        <button type="button" v-on:click="startGame()">开始</button>
+        <br>
+        <button type="button" v-on:click="goRank()">排行</button>
+    </div>
+
+    <div id="content2">
+        <span>当前分数:{{score}}</span>
+        <span>时间：{{time}}</span>
+    </div>
+
+    <div id="content3" v-show="isShowContentLost">
+        <h1>游戏结束</h1>
+        <h1>你的分数:{{score}}</h1>
+        <h1>用时:{{time}}</h1>
+        <button type="button" v-on:click="goRank()">排行</button>
+        <br>
+        <button type="button" v-on:click="restartGame()">重新开始</button>
+    </div>
+
+    <div id="content4" v-show="isShowContentRank">
+        <h1>排行榜</h1>
+        <div v-for="rank in ranks | orderBy 'score' -1">{{ $index + 1 }} - 分数： {{rank.score}} - 时间： {{rank.time}}</div>
+        <button v-on:click="goBack()">返回</button>
+    </div>
+
+    <div v-for="item in items" class="listStyle">
+        <div v-for="i in item" class="divStyle" v-bind:class="selectColor(i)"></div>
+    </div>
+</div>
+<script src="lib/Class.js"></script>
+<script src="lib/EventEmitter.js"></script>
+<script src="lib/FSM.js"></script>
+<script src="vue.js"></script>
+<script>
+    'use strict';
+
+    const UP = {x : 0,y : -1};
+    const DOWN = {x : 0,y : 1};
+    const LEFT = {x : -1,y : 0};
+    const RIGHT = {x : 1,y : 0};
+
+
+    class Fruit {
+        constructor(x, y){
+            // @TODO
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    class Snake {
+
+        constructor(sHead){
+            // @TODO
+            let point = {x: 0,y: 0};
+            let point_array = [];
+            for(let i = 0; i < 3 ; i++ ){
+                point = {x : sHead.x , y : sHead.y + i};
+                point_array[i] = point;
+            }
+            this.point_array = point_array;
+        }
+
+        length(){
+            return this.point_array.length;
+        }
+
+        growUp(direction){
+            let newHead = {x : this.point_array[0].x + direction.x , y : this.point_array[0].y + direction.y};
+            this.point_array = [newHead].concat(this.point_array);
+        }
+
+        goAhead(direction){
+            let newHead = {x : this.point_array[0].x + direction.x , y : this.point_array[0].y + direction.y};
+            this.point_array = [newHead].concat(this.point_array.slice(0,-1));
+        }
+
+        getPointArray(){
+            return this.point_array;
+        }
+    }
+
+    class Game{
+        constructor(snake,dir,fruit,width,height){
+            this.snake = snake;
+            this.direction = dir;
+            this.fruit = fruit;
+            this.width = width;
+            this.height = height;
+        }
+
+        nextStep(){
+            const n = this.check();
+            switch (n) {
+                case 1: return this.gameAhead();
+                case 2: return this.growUp();
+                case 3: return this.die();
+            }
+
+        }
+
+        setDirection(dir){
+            // @TODO
+            this.direction = dir;
+        }
+
+        setFruit(){
+            let fruitX = parseInt(Math.random() * this.width);
+            let fruitY = parseInt(Math.random() * this.height);
+            this.fruit.x = fruitX;
+            this.fruit.y = fruitY;
+        }
+
+
+        gameAhead(){
+            // @TODO
+            this.snake.goAhead(this.direction);
+            return {alive: true, map: this.draw(), length: this.snake.length()};
+        }
+
+        growUp(){
+            // @TODO
+            this.snake.growUp(this.direction);
+            return {alive: true, map: this.draw(), length: this.snake.length()};
+        }
+
+        die(){
+            // @TODO
+            return {alive: false, map: this.draw(), length: this.snake.length()};
+        }
+
+        draw(){
+//            Initialize the board
+            let board = [];
+            let isEmpty = true;
+            for (let i = 0;i < 30;i++ ){
+                let boardLine = [];
+                board.push(boardLine);
+                for (let j = 0;j < 30;j++){
+                    boardLine.push(0);
+                }
+            }
+            for(let y = 0;y < this.width;y++){
+                for(let x = 0;x < this.height;x++){
+                    isEmpty = true;
+                    for(let k = 0; k < this.snake.length();k++){
+                        if(y == this.snake.point_array[0].y && x == this.snake.point_array[0].x){
+                            board[y][x] = 1;
+                            isEmpty = false;true
+                            continue;
+                        }
+                        if(y == this.snake.point_array[k].y && x == this.snake.point_array[k].x){
+                            board[y][x] = 2;
+                            isEmpty = false;
+                        }
+                        if(y == this.fruit.y && x == this.fruit.x){
+                            board[y][x] = 3;
+                            isEmpty = false;
+                        }
+                    }
+                    if (isEmpty)
+                        board[y][x] = 0;
+                }
+            }
+
+            return board;
+        }
+        check(){
+            if(!this.checkSnake()) return 3;
+            else {
+                if(this.eatFruit()){
+                    do {
+                        this.setFruit();
+                    }while(this.checkFruit());
+                    return 2;
+                }
+
+                return 1;
+            }
+        }
+
+        checkFruit(){
+            for(let j = 0 ; j < this.snake.length() ; j++){
+                if(this.fruit.x == this.snake.point_array[j].x && this.fruit.y == this.snake.point_array[j].y){
+                    this.setFruit();
+                    return false;
+                }
+            }
+            return true;
+        }
+        checkSnake(){
+//            this.snake.goAhead(this.direction);
+            let head = this.snake.point_array[0];
+            let newHead = {x : head.x + this.direction.x , y : head.y + this.direction.y};
+            let point_array = this.snake.point_array;
+            point_array = [newHead].concat(point_array.slice(0,-1));
+//            touch the border
+            if(newHead.x >= this.width || newHead.x < 0 || newHead.y < 0 || newHead.y >= this.height) return false;
+//            kill itself
+            for (let i = 1;i < this.snake.length();i++){
+                if(point_array[i].x == newHead.x && point_array[i].y == newHead.y)
+                    return false;
+            }
+            return true;
+        }
+
+        eatFruit(){
+            return (this.snake.point_array[0].x == this.fruit.x && this.snake.point_array[0].y == this.fruit.y);
+        }
+
+    }
+    function GameInit() {
+        let width = 30;
+        let height = 30;
+        let snakeHead = {x : 14 , y : 14};
+        let fruit = {x:15,y:15};
+        let snake = new Snake(snakeHead);
+        let newGame = new Game(snake,UP,fruit,width,height);
+//        setInterval(function(){
+//            newGame.nextStep();
+//        },1000);
+        return newGame;
+    }
+
+
+    const vm = new Vue({
+        el: '#app',
+        data: {
+            items: Array(30).fill(Array(30).fill(0)).map((i) => i.map((j) => parseInt(Math.random() * 4))),
+            isShowContentHome: false,
+            isShowContentRank:false,
+            isShowContentLost:false,
+
+            logic: FSM(),
+
+            time:0,
+            score: 0,
+            game: null,
+
+            ranks: []
+        },
+        methods: {
+            up(){
+                if (this.game) this.game.setDirection(UP);
+            },
+            down(){
+                if (this.game) this.game.setDirection(DOWN);
+            },
+            right(){
+                if (this.game) this.game.setDirection(RIGHT);
+            },
+            left(){
+                if (this.game) this.game.setDirection(LEFT);
+            },
+            selectColor(i) {
+                switch (i) {
+                    case 0:
+                        return '';
+                    case 1:
+                        return 'head';
+                    case 2:
+                        return 'body';
+                    case 3:
+                        return 'fruit';
+                }
+            },
+            startGame(){
+                this.logic.input('startGame');
+            },
+            goRank(){
+                this.logic.input('goRank');
+            },
+            restartGame(){
+                this.logic.input('restartGame');
+            },
+            goBack(){
+                this.logic.input('goBack');
+            }
+        },
+
+        created(){
+            const _this = this;
+            this.logic
+                .rule('home (startGame) => game')
+                .rule('game (endGame) => score')
+                .rule('score (restartGame) => game')
+                .rule('score (goRank) => rank')
+                .rule('home (goRank) => rank')
+                .rule('rank (goBack) => home')
+
+                .on('home_enter', function () {
+                    _this.isShowContentHome=true;
+                })
+                .on('home_leave', function () {
+                    _this.isShowContentHome=false;
+                })
+                .on('score_enter', function () {
+                    _this.isShowContentLost=true;
+                })
+                .on('score_leave', function () {
+                    _this.isShowContentLost=false;
+                })
+                .on('rank_enter', function () {
+                    _this.isShowContentRank=true;
+                })
+                .on('rank_leave', function () {
+                    _this.isShowContentRank=false;
+                })
+                .on('game_enter', function () {
+                    _this.time = 0;
+                    _this.score = 0;
+                    _this.game = GameInit();
+
+                    const now = function(){return parseInt(+new Date() / 1000);};
+                    const start_time = now();
+
+                    const timer = setInterval(function(){
+                        const status = _this.game.nextStep();
+                        _this.items = status.map;
+                        _this.score = status.length;
+                        _this.time = now() - start_time;
+                        if (status.alive === false) {
+                            clearInterval(timer);
+                            _this.logic.input('endGame');
+                        }
+                    }, 200);
+                })
+                .on('game_leave', function(){
+                     _this.ranks.push({score: _this.score,time:_this.time});
+                })
+
+        },
+
+        ready(){
+//                setInterval(() => {
+//                    this.items = Array(30).fill(Array(30).fill(0)).map((i) => i.map((j) => parseInt(Math.random()*4)))
+//                }, 1000)
+
+            window.addEventListener('keydown', (event) => {
+                switch (event.key) {
+                    case 'ArrowUp':
+                        this.up();
+                        break;
+                    case 'ArrowDown':
+                        this.down();
+                        break;
+                    case 'ArrowLeft':
+                        this.left();
+                        break;
+                    case 'ArrowRight':
+                        this.right();
+                        break;
+                }
+            })
+
+            this.logic.start('home');
+        }
+
+
+
+    })
+
+
+
+</script>
+
